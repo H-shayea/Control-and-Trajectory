@@ -17,48 +17,50 @@ PID::~PID() {}
 
 void PID::Init(double Kpi, double Kii, double Kdi, double output_lim_maxi, double output_lim_mini) {
    /**
-    TODO: Initialize PID coefficients (and errors, if needed)
+   * TODO: Initialize PID coefficients (and errors, if needed)
    **/
-   Kp = Kpi;
-   Ki = Kii;
-   Kd = Kdi;
-   output_lim_max = output_lim_maxi;
-   output_lim_min = output_lim_mini;
+  this->Kp = Kpi;
+   this->Ki = Kii;
+   this->Kd = Kdi;
+
+   this->output_lim_max = output_lim_maxi;
+   this->output_lim_min = output_lim_mini;
 }
 
 
 void PID::UpdateError(double cte) {
    /**
-    TODO: Update PID errors based on cte.
+   * TODO: Update PID errors based on cte.
    **/
-   diff_cte = (cte - prev_cte)/dt;
-   prev_cte = cte;
-   int_cte += cte*dt;
-   
+  this->p_error = cte;
+
+   if (this->first_flag == true) {
+      this->prev_cte = cte;
+      this->first_flag = false;
+   }
+   this->d_error = (cte - this->prev_cte) / this->delta_time;
+   this->prev_cte = cte;
+
+   this->i_error += cte * this->delta_time;
 }
 
 double PID::TotalError() {
    /**
-    TODO: Calculate and return the total error
+   * TODO: Calculate and return the total error
     * The code should return a value in the interval [output_lim_mini, output_lim_maxi]
    */
     double control;
-    control = (prev_cte * Kp) + (int_cte * Ki) + (diff_cte * Kd);
-    if (control > output_lim_max)
-    {
-      control = output_lim_max;
-    }
-    else if (control < output_lim_min)
-    {
-      control = output_lim_min;
-    }
+   control = this->Kp * this->p_error + this->Ki * this->i_error + this->Kd * this->d_error;
+   if (control > this->output_lim_max)
+      control = this->output_lim_max;
+   else if (control < this->output_lim_min)
+      control = this->output_lim_min;
     return control;
 }
 
 double PID::UpdateDeltaTime(double new_delta_time) {
    /**
-    TODO: Update the delta time with new value
+   * TODO: Update the delta time with new value
    */
-   dt = new_delta_time;
-   return dt;
+  this->delta_time = new_delta_time;
 }
