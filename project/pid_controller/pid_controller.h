@@ -17,18 +17,26 @@ public:
     /*
     * Errors
     */
+    float e_p;
+  	float e_i;
+  	float e_d;
 
     /*
     * Coefficients
     */
+    float p;
+  	float i;
+  	float d;
 
     /*
     * Output limits
     */
-  
+    float max;
+  	float min;
     /*
     * Delta time
     */
+    float delta;
 
     /*
     * Constructor
