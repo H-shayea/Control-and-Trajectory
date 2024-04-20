@@ -1,3 +1,4 @@
+
 /**********************************************
  * Self-Driving Car Nano-degree - Udacity
  *  Created on: September 20, 2020
@@ -184,7 +185,7 @@ void path_planner(vector<double>& x_points, vector<double>& y_points, vector<dou
 
 }
 
-void set_obst(vector<double> x_points, vector<double> y_points, vector<State>& obstacles, bool& obst_flag){
+void set_obst(vector<double> x_points, vector<double> y_points, vector<State>& obstacles, bool& mrk_i){
 
 	for( int i = 0; i < x_points.size(); i++){
 		State obstacle;
@@ -192,33 +193,37 @@ void set_obst(vector<double> x_points, vector<double> y_points, vector<State>& o
 		obstacle.location.y = y_points[i];
 		obstacles.push_back(obstacle);
 	}
-	obst_flag = true;
+	mrk_i = true;
 }
 
-std::size_t closest_point(double point_x, double point_y, std::vector<double> points_x, std::vector<double> points_y)
-{
-  // Index of closest found point 
-  std::size_t closest_point_idx = 0;
-  // Distance to point
-  double mini = std::numeric_limits<double>::infinity();
-  // Find closest point in vector
-  for (std::size_t i = 0; i < points_x.size(); ++i)
-  {
-    double dist = std::pow(
-        (std::pow((point_x - points_x[i]), 2)
-         + std::pow((point_y - points_y[i]), 2)
-        ),
-        0.5
-    );
-    
-    if (dist < mini)
-    {
-      mini = dist;
-      closest_point_idx = i;
-    }
+
+double normalize(double error_steer) {
+  while (error_steer < -M_PI) {
+    error_steer += 2 * M_PI;
   }
-  return closest_point_idx;
+  while (error_steer > M_PI) {
+    error_steer -= 2 * M_PI;
+  }
+  return error_steer;
 }
+
+
+// 
+int closest_point(double x_position, double y_position, const vector<double>& x_pts, const vector<double>& y_pts) {
+    int closest_point_idx = 0;
+    double min_distance_squared = std::numeric_limits<double>::infinity();
+    for (int i = 0; i < x_pts.size(); i++) {
+        double dx = x_pts[i] - x_position;
+        double dy = y_pts[i] - y_position;
+        double distance_squared = dx * dx + dy * dy;
+        if (distance_squared < min_distance_squared) {
+            min_distance_squared = distance_squared;
+            closest_point_idx = i;
+        }
+    }
+    return closest_point_idx;
+}
+
 
 int main ()
 {
@@ -243,19 +248,15 @@ int main ()
   /**
   * TODO (Step 1): create pid (pid_steer) for steer command and initialize values
   **/
-  
-  
   PID pid_steer = PID();
-  pid_steer.Init(0.5, 0.0005, 0.0007, 0.6, -0.6);
+  pid_steer.Init(0.3, 0.0008, 0.4, 1.2, -1.2);
 
   // initialize pid throttle
   /**
   * TODO (Step 1): create pid (pid_throttle) for throttle command and initialize values
   **/
-
-  
   PID pid_throttle = PID();
-  pid_throttle.Init(0.2, 0.0005, 0.001, 1.0, -1.0);
+  pid_throttle.Init(0.2, 0.00087, 0.12, 1.0, -1.0);
 
   h.onMessage([&pid_steer, &pid_throttle, &new_delta_time, &timer, &prev_timer, &i, &prev_timer](uWS::WebSocket<uWS::SERVER> ws, char *data, size_t length, uWS::OpCode opCode)
   {
@@ -317,21 +318,27 @@ int main ()
           /**
           * TODO (step 3): uncomment these lines
           **/
-//           // Update the delta time with the previous command
+          // Update the delta time with the previous command
           pid_steer.UpdateDeltaTime(new_delta_time);
 
           // Compute steer error
-          std::size_t points = closest_point(x_position, y_position, x_points, y_points);
-            
+          double error_steer;
+          
+          double steer_output;
 
           /**
           * TODO (step 3): compute the steer error (error_steer) from the position and the desired trajectory
           **/
-          double error_steer = angle_between_points(x_position, y_position, x_points[points], y_points[points]) - yaw;
-          pid_steer.UpdateError(error_steer);
+          
+          // Find the index of the closest point to the current position
+          int closest_pt_idx = closest_point(x_position, y_position, x_points, y_points);
 
-          double steer_output = pid_steer.TotalError();
-;
+          // Compute the angle between the current position and the closest point
+          double angle_desired = angle_between_points(x_position, y_position, x_points[closest_pt_idx], y_points[closest_pt_idx]);
+
+          // Compute the desired angle for steering by subtracting the current heading (yaw) from the angle between the current position and the closest point, and then normalize the result
+           error_steer = normalize(angle_desired - yaw);
+
 
           /**
           * TODO (step 3): uncomment these lines
@@ -356,7 +363,7 @@ int main ()
           /**
           * TODO (step 2): uncomment these lines
           **/
-//           // Update the delta time with the previous command
+          // Update the delta time with the previous command
           pid_throttle.UpdateDeltaTime(new_delta_time);
 
           // Compute error of speed
@@ -365,20 +372,19 @@ int main ()
           * TODO (step 2): compute the throttle error (error_throttle) from the position and the desired speed
           **/
           // modify the following line for step 2
-          error_throttle = v_points[points] - velocity;
+          error_throttle = v_points[closest_pt_idx] - velocity;
 
           double throttle_output;
           double brake_output;
-          pid_throttle.UpdateError(error_throttle);
 
           /**
           * TODO (step 2): uncomment these lines
           **/
-          // Compute control to apply
+//           // Compute control to apply
           pid_throttle.UpdateError(error_throttle);
           double throttle = pid_throttle.TotalError();
 
-          // Adapt the negative throttle to break
+//           // Adapt the negative throttle to break
           if (throttle > 0.0) {
             throttle_output = throttle;
             brake_output = 0;
@@ -387,7 +393,7 @@ int main ()
             brake_output = -throttle;
           }
 
-          // Save data
+//           // Save data
           file_throttle.seekg(std::ios::beg);
           for(int j=0; j < i - 1; ++j){
               file_throttle.ignore(std::numeric_limits<std::streamsize>::max(),'\n');
