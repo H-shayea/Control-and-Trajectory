@@ -7,7 +7,7 @@
 # For a copy, see <https://opensource.org/licenses/MIT>.
 
 # Allows controlling a vehicle with a keyboard. For a simpler and more
-# documented example, please take a look at tutorial.py.
+# documented example, please take a look at tutorial.py.#
 
 """
 Welcome to CARLA manual control.
